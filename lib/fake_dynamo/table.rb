@@ -200,15 +200,7 @@ module FakeDynamo
       hash_attribute = Attribute.from_hash(key_schema.hash_key.name, data['HashKeyValue'])
       matched_items = get_items_by_hash_key(hash_attribute)
 
-
       forward = data.has_key?('ScanIndexForward') ? data['ScanIndexForward'] : true
-
-      if forward
-        matched_items.sort! { |a, b| a.key.range <=> b.key.range }
-      else
-        matched_items.sort! { |a, b| b.key.range <=> a.key.range }
-      end
-
       matched_items = drop_till_start(matched_items, data['ExclusiveStartKey'], forward)
 
       if data['RangeKeyCondition']
@@ -268,15 +260,21 @@ module FakeDynamo
     end
 
     def drop_till_start(all_items, start_key_hash, forward)
+      all_items = all_items.sort_by { |item| item.key }
+
+      unless forward
+        all_items = all_items.reverse
+      end
+
       if start_key_hash
         start_key = Key.from_data(start_key_hash, key_schema)
-        all_items.drop_while { |i| 
+        all_items.drop_while do |item|
           if forward
-            i.key.range <= start_key.range 
+            item.key <= start_key
           else
-            i.key.range >= start_key.range
+            item.key >= start_key
           end
-        }
+        end
       else
         all_items
       end

@@ -373,7 +373,7 @@ module FakeDynamo
         t = Table.new(data)
         t.put_item(item)
         (1..3).each do |i|
-          (1..15).each do |j|
+          (15.downto(1)).each do |j|
             next if j.even?
             item['Item']['AttributeName1']['S'] = "att#{i}"
             item['Item']['AttributeName2']['N'] = j.to_s
@@ -426,6 +426,24 @@ module FakeDynamo
         result['Items'].first['AttributeName2'].should eq({'N' => '3'})
         result = subject.query(query.merge({'ScanIndexForward' => false}))
         result['Items'].first['AttributeName2'].should eq({'N' => '15'})
+
+        query['ExclusiveStartKey'] = { 'HashKeyElement' => { 'S' => 'att1' }, 'RangeKeyElement' => { "N" => '7' }}
+        result = subject.query(query)
+        result['Items'][0]['AttributeName1'].should eq({'S' => 'att1'})
+        result['Items'][0]['AttributeName2'].should eq({'N' => '9'})
+
+        result = subject.query(query.merge({'ScanIndexForward' => false}))
+        result['Items'][0]['AttributeName1'].should eq({'S' => 'att1'})
+        result['Items'][0]['AttributeName2'].should eq({'N' => '5'})
+
+        query['ExclusiveStartKey'] = { 'HashKeyElement' => { 'S' => 'att1' }, 'RangeKeyElement' => { "N" => '8' }}
+        result = subject.query(query)
+        result['Items'][0]['AttributeName1'].should eq({'S' => 'att1'})
+        result['Items'][0]['AttributeName2'].should eq({'N' => '9'})
+
+        result = subject.query(query.merge({'ScanIndexForward' => false}))
+        result['Items'][0]['AttributeName1'].should eq({'S' => 'att1'})
+        result['Items'][0]['AttributeName2'].should eq({'N' => '7'})
       end
 
       it 'should return lastevaluated key' do
@@ -442,7 +460,7 @@ module FakeDynamo
       it 'should handle exclusive start key' do
         result = subject.query(query.merge({'ExclusiveStartKey' => {"HashKeyElement"=>{"S"=>"att1"}, "RangeKeyElement"=>{"N"=>"7"}}}))
         result['Count'].should eq(4)
-        result['Items'].first['AttributeName2'].should eq({'N' => '9'})        
+        result['Items'].first['AttributeName2'].should eq({'N' => '9'})
         result = subject.query(query.merge({'ExclusiveStartKey' => {"HashKeyElement"=>{"S"=>"att1"}, "RangeKeyElement"=>{"N"=>"8"}}}))
         result['Count'].should eq(4)
         result['Items'].first['AttributeName2'].should eq({'N' => '9'})
@@ -450,6 +468,7 @@ module FakeDynamo
         result['Count'].should eq(0)
         result['Items'].should be_empty
       end
+
 
       it 'should return all elements if not rangekeycondition is given' do
         query.delete('RangeKeyCondition')
@@ -478,7 +497,7 @@ module FakeDynamo
       subject do
         t = Table.new(data)
         (1..3).each do |i|
-          (1..15).each do |j|
+          (15.downto(1)).each do |j|
             next if j.even?
             item['Item']['AttributeName1']['S'] = "att#{i}"
             item['Item']['AttributeName2']['N'] = j.to_s
@@ -531,6 +550,18 @@ module FakeDynamo
         result = subject.scan(scan)
         result['LastEvaluatedKey'].should be_nil
       end
+
+      it 'should handle ordering' do
+        scan['ExclusiveStartKey'] = { 'HashKeyElement' => { 'S' => 'att2' }, 'RangeKeyElement' => { "N" => '7' }}
+        result = subject.scan(scan)
+        result['Items'][0]['AttributeName1'].should eq({'S' => 'att2'})
+        result['Items'][0]['AttributeName2'].should eq({'N' => '9'})
+
+        scan['ExclusiveStartKey'] = { 'HashKeyElement' => { 'S' => 'att2' }, 'RangeKeyElement' => { "N" => '8' }}
+        result['Items'][0]['AttributeName1'].should eq({'S' => 'att2'})
+        result['Items'][0]['AttributeName2'].should eq({'N' => '9'})
+      end
+
     end
   end
 end
